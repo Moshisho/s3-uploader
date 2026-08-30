@@ -172,12 +172,12 @@
     <p class="subtitle">Upload large files to Moshe's S3 bucket</p>
 
     <form id="uploadForm" novalidate>
-      <label for="awsKey">x
-        <input id="awsKey" type="text" autocomplete="off" spellcheck="false" placeholder="AKIA...">
+      <label for="ak">x
+        <input id="ak" type="text" autocomplete="off" spellcheck="false" placeholder="Enter x value given">
       </label>
 
-      <label for="awsSecret">y
-        <input id="awsSecret" type="password" autocomplete="off" placeholder="Enter your secret key">
+      <label for="as">y
+        <input id="as" type="password" autocomplete="off" placeholder="Enter y value given">
       </label>
 
       <label class="file-picker" for="fileInput">
@@ -207,7 +207,7 @@
     /* ===================== HARD-CODED CONFIG — edit these ===================== */
     var CONFIG = {
       REGION: 'us-east-1',           // e.g. 'eu-west-1'
-      BUCKET: 'your-bucket-name'     // your S3 bucket name
+      BUCKET: 'amzn-mosh-large-spa'     // your S3 bucket name
     };
     /* ========================================================================= */
 
@@ -215,8 +215,8 @@
     var QUEUE_SIZE = 3;               // up to 3 parts in flight
 
     var form        = document.getElementById('uploadForm');
-    var keyInput    = document.getElementById('awsKey');
-    var secretInput = document.getElementById('awsSecret');
+    var keyInput    = document.getElementById('ak');
+    var secretInput = document.getElementById('as');
     var fileInput   = document.getElementById('fileInput');
     var fileInfo    = document.getElementById('fileInfo');
     var uploadBtn   = document.getElementById('uploadBtn');
@@ -250,7 +250,7 @@
       var file = fileInput.files[0];
 
       if (!accessKeyId || !secretAccessKey) {
-        setStatus('Enter your AWS Access Key ID and Secret Access Key first.', 'error');
+        setStatus('Enter x and y please as given.', 'error');
         return;
       }
       if (!file) {
