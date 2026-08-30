@@ -120,6 +120,17 @@
     color: var(--muted);
     margin: -8px 0 10px;
   }
+  .note {
+    margin: -6px 0 14px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.45;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .note strong { color: var(--text); }
   button {
     display: block;
     width: 100%;
@@ -183,8 +194,9 @@
       <label class="file-picker" for="fileInput">
         <span>File</span>
         <input id="fileInput" class="file-input" type="file">
-        <span class="hint">Up to 10 GB+ &mdash; handled automatically via multipart upload.</span>
+        <span class="hint">Up to 10 GB &mdash; handled automatically via multipart upload.</span>
       </label>
+      <p class="note">A 10 GB upload can take around 15 minutes. <strong>Keep this page open</strong> and feel free to work in other tabs while it uploads.</p>
       <div id="fileInfo" class="file-info" aria-live="polite"></div>
 
       <button id="uploadBtn" type="submit">Upload</button>
@@ -272,7 +284,7 @@
       progressWrap.hidden = false;
       progressBar.style.width = '0%';
       progressText.textContent = 'Uploaded: 0B of ' + formatBytes(total) + ' (0%)';
-      setStatus('Uploading ' + file.name + ' to s3://' + CONFIG.BUCKET + '/');
+      setStatus('Uploading ' + file.name + ' to s3://' + CONFIG.BUCKET + '/ \u2014 keep this page open, it may take ~15 min for 10 GB.');
       progressBar.setAttribute('aria-valuenow', '0');
 
       var upload = s3.upload(
