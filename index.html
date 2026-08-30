@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S3 Multipart Uploader</title>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.1481.0.min.js"></script>
+<style>
+  :root {
+    --bg-1: #0f172a;
+    --bg-2: #1e1b4b;
+    --card: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.12);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #818cf8;
+    --success: #34d399;
+    --error: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 700px at 20% 10%, var(--accent) 0%, transparent 55%),
+                radial-gradient(1000px 600px at 85% 90%, var(--accent-2) 0%, transparent 55%),
+                linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    background-attachment: fixed;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 36px 32px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  }
+  h1 {
+    font-size: 1.6rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 26px;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  input[type="text"],
+  input[type="password"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+  }
+  input[type="text"]:focus,
+  input[type="password"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+  }
+  .file-picker {
+    align-items: stretch;
+  }
+  .file-picker .hint {
+    color: var(--muted);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.78rem;
+  }
+  .file-input {
+    padding: 16px 14px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+  .file-input::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b1120;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .file-info {
+    min-height: 18px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: -8px 0 10px;
+  }
+  button {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0b1120;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  button:hover:not(:disabled) { opacity: 0.9; }
+  button:active:not(:disabled) { transform: scale(0.99); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .progress-wrap { margin-top: 20px; }
+  .progress-track {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 999px;
+    transition: width 0.25s ease;
+  }
+  .progress-text {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  .status { margin-top: 14px; font-size: 0.9rem; line-height: 1.45; }
+  .status.success { color: var(--success); }
+  .status.error { color: var(--error); }
+  .status.idle { color: var(--muted); }
+  @media (max-width: 480px) {
+    .card { padding: 26px 20px; }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>S3 Multipart Uploader</h1>
+    <p class="subtitle">Upload large files straight to your bucket from the browser.</p>
+
+    <form id="uploadForm" novalidate>
+      <label for="awsKey">AWS Access Key ID
+        <input id="awsKey" type="text" autocomplete="off" spellcheck="false" placeholder="AKIA...">
+      </label>
+
+      <label for="awsSecret">AWS Secret Access Key
+        <input id="awsSecret" type="password" autocomplete="off" placeholder="Enter your secret key">
+      </label>
+
+      <label class="file-picker" for="fileInput">
+        <span>File</span>
+        <input id="fileInput" class="file-input" type="file">
+        <span class="hint">Up to 10 GB+ &mdash; handled automatically via multipart upload.</span>
+      </label>
+      <div id="fileInfo" class="file-info" aria-live="polite"></div>
+
+      <button id="uploadBtn" type="submit">Upload</button>
+    </form>
+
+    <div id="progressWrap" class="progress-wrap" hidden>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Upload progress">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+      <p id="progressText" class="progress-text">Uploaded: 0B of 0B (0%)</p>
+    </div>
+
+    <p id="statusText" class="status idle" role="status"></p>
+  </main>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ===================== HARD-CODED CONFIG — edit these ===================== */
+    var CONFIG = {
+      REGION: 'us-east-1',           // e.g. 'eu-west-1'
+      BUCKET: 'your-bucket-name'     // your S3 bucket name
+    };
+    /* ========================================================================= */
+
+    var PART_SIZE = 10 * 1024 * 1024; // 10 MB per part
+    var QUEUE_SIZE = 3;               // up to 3 parts in flight
+
+    var form        = document.getElementById('uploadForm');
+    var keyInput    = document.getElementById('awsKey');
+    var secretInput = document.getElementById('awsSecret');
+    var fileInput   = document.getElementById('fileInput');
+    var fileInfo    = document.getElementById('fileInfo');
+    var uploadBtn   = document.getElementById('uploadBtn');
+    var progressWrap  = document.getElementById('progressWrap');
+    var progressBar   = document.getElementById('progressBar');
+    var progressText  = document.getElementById('progressText');
+    var statusText    = document.getElementById('statusText');
+
+    function formatBytes(bytes) {
+      if (!isFinite(bytes) || bytes <= 0) return '0B';
+      var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      var i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+      return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + units[i];
+    }
+
+    function setStatus(msg, kind) {
+      statusText.textContent = msg;
+      statusText.className = 'status ' + (kind || 'idle');
+    }
+
+    fileInput.addEventListener('change', function () {
+      var f = fileInput.files[0];
+      fileInfo.textContent = f ? f.name + ' \u00b7 ' + formatBytes(f.size) : '';
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var accessKeyId = keyInput.value.trim();
+      var secretAccessKey = secretInput.value;
+      var file = fileInput.files[0];
+
+      if (!accessKeyId || !secretAccessKey) {
+        setStatus('Enter your AWS Access Key ID and Secret Access Key first.', 'error');
+        return;
+      }
+      if (!file) {
+        setStatus('Choose a file to upload.', 'error');
+        return;
+      }
+
+      AWS.config.update({
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+        region: CONFIG.REGION,
+        signatureVersion: 'v4'
+      });
+
+      var s3 = new AWS.S3({ signatureVersion: 'v4' });
+      var total = file.size;
+
+      uploadBtn.disabled = true;
+      progressWrap.hidden = false;
+      progressBar.style.width = '0%';
+      progressText.textContent = 'Uploaded: 0B of ' + formatBytes(total) + ' (0%)';
+      setStatus('Uploading ' + file.name + ' to s3://' + CONFIG.BUCKET + '/');
+      progressBar.setAttribute('aria-valuenow', '0');
+
+      var upload = s3.upload(
+        { Bucket: CONFIG.BUCKET, Key: file.name, Body: file },
+        { partSize: PART_SIZE, queueSize: QUEUE_SIZE }
+      );
+
+      upload.on('httpUploadProgress', function (event) {
+        var loaded = event.loaded || 0;
+        var pct = total > 0 ? Math.min(100, (loaded / total) * 100) : 0;
+        progressBar.style.width = pct.toFixed(1) + '%';
+        progressBar.setAttribute('aria-valuenow', pct.toFixed(0));
+        progressText.textContent = 'Uploaded: ' + formatBytes(loaded) +
+          ' of ' + formatBytes(total) + ' (' + pct.toFixed(0) + '%)';
+      });
+
+      upload.send(function (err, data) {
+        uploadBtn.disabled = false;
+        if (err) {
+          var msg = (err && err.message) ? err.message : String(err);
+          setStatus('Upload failed: ' + msg, 'error');
+          return;
+        }
+        progressBar.style.width = '100%';
+        progressBar.setAttribute('aria-valuenow', '100');
+        progressText.textContent = 'Uploaded: ' + formatBytes(total) +
+          ' of ' + formatBytes(total) + ' (100%)';
+        setStatus('\u2714 Done! ' + file.name + ' uploaded. S3 key: ' + data.Key, 'success');
+      });
+    });
+  })();
+  </script>
+</body>
+</html>
